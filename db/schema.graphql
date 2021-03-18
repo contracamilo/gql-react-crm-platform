@@ -1,0 +1,117 @@
+const { ApolloServer, gql } = require("apollo-server");
+
+const typeDefs = gql`
+
+  type User {
+    id: ID
+    name: String
+    lastname: String
+    email: String
+    createdAt: String
+  }
+
+  type Product {
+    id: ID
+    name: String
+    stock: Int
+    price: Float
+    createdAt: String
+  }
+
+  type Client {
+    id: ID
+    name: String
+    lastname: String
+    email: String
+    company: String
+    phone: String
+    seller: String
+    createdAt: String
+  }
+
+  type Token {
+    token: String
+  }
+
+  input UserInput {
+    name: String!
+    lastname: String!
+    email: String!
+    password: String!
+  }
+
+  input ProductInput {
+    name: String!
+    stock: Int!
+    price: Float!
+  }
+
+  input AuthInput {
+    email: String!
+    password: String!
+  }
+
+  input ClientInput {
+    name: String!
+    lastname: String!
+    email: String!
+    company: String!
+    phone: String
+
+  }
+
+  type Query {
+    # Users
+
+    getAuthUser(token: String!): User
+
+    # Products
+
+    # get all
+    getProducts: [Product]
+    # get product by ID
+    getProductByID(id: ID!): Product
+
+    #Clients
+
+    # get all
+    getClients: [Client]
+    # get clients by sales person
+    getClientsBySalesPerson: [Client]
+    # get a client by ID
+    getClientByID(id: ID!): Client
+
+
+  }
+
+  type Mutation {
+      # Users
+
+      # add new users
+      addNewUser(input: UserInput): User
+      # auth users
+      authUser(input: AuthInput): Token
+      
+      # Products
+
+      #add new product
+      addNewProduct(input: ProductInput): Product
+      #update a product
+      updateProduct(id: ID!, input: ProductInput): Product
+      #delete a product
+      deleteProduct(id: ID!): String
+
+      # CLients
+
+      # Create a new client
+      addClient(input: ClientInput): Client
+      # update a client
+      updateClient(id: ID!, input: ClientInput): Client
+      # Delete a client
+      deleteClient(id: ID!): String
+  }
+
+  
+`;
+
+module.exports = typeDefs;
