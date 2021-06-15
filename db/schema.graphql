@@ -1,6 +1,11 @@
 const { ApolloServer, gql } = require("apollo-server");
 
 const typeDefs = gql`
+  enum OrderStatus {
+    PENDING
+    COMPLETED
+    CANCELLED
+  }
 
   type User {
     id: ID
@@ -33,6 +38,21 @@ const typeDefs = gql`
     token: String
   }
 
+  type OrderGroup {
+     id: ID
+     quantity: Int
+  }
+
+  type Order {
+    id: ID
+    order: [OrderGroup]
+    total: Float
+    client: ID
+    salesPerson: ID
+    status: OrderStatus
+    createdAt: String
+  }
+
   input UserInput {
     name: String!
     lastname: String!
@@ -60,6 +80,28 @@ const typeDefs = gql`
 
   }
 
+  input ProductOrderInput {
+    id: ID
+    quantity: Int
+  }
+
+  input OrderInput {
+    order: [ProductOrderInput]
+    total: Float
+    client: ID!
+    status: OrderStatus
+  }
+
+  type TopClient {
+    total: Float
+    client: [Client]
+  }
+
+  type TopSalesPerson {
+    total: Float
+    salesPerson: [User]
+  }
+
   type Query {
     # Users
 
@@ -80,8 +122,19 @@ const typeDefs = gql`
     getClientsBySalesPerson: [Client]
     # get a client by ID
     getClientByID(id: ID!): Client
+    #Get orders
+    getOrders: [Order]
+    #Get orders by sales person
+    getOrdersBySalesPerson: [Order]
+    #Get orders by ID
+    getOrderByID(id: ID!): Order
+    #Get orders by status
+    getOrdersByStatus(status: String!) : [Order]
 
-
+    #advanced search
+    getTopClients: [TopClient]
+    getTopSalesPerson: [TopSalesPerson]
+    searchProductByName(txt: String!): [Product]
   }
 
   type Mutation {
@@ -109,6 +162,12 @@ const typeDefs = gql`
       updateClient(id: ID!, input: ClientInput): Client
       # Delete a client
       deleteClient(id: ID!): String
+      # Create new order
+      newOrder(input: OrderInput): Order
+      # Update Order
+      updateOrder(id: ID, input: OrderInput): Order
+      # delete Order
+      deleteOrder(id: ID): String
   }
 
   

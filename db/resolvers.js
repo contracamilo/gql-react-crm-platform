@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Product = require("../models/Product");
 const Client = require("../models/Client");
+const Order = require("../models/Order");
 const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 require("dotenv").config({ path: "variables.env" });
@@ -61,6 +62,102 @@ const resolvers = {
       }
 
       return client;
+    },
+    getOrders: async () => {
+      try {
+        const orders = await Order.find({});
+        return orders;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    getOrdersBySalesPerson: async (_, {}, ctx) => {
+      try {
+        const orders = await Order.find({ salesPerson: ctx.user.id });
+        return orders;
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    getOrderByID: async (_, { id }, ctx) => {
+      const order = await Order.findById(id);
+
+      if (!order) {
+        throw new Error("unable order");
+      }
+
+      if (order.salesPerson.toString() !== ctx.user.id) {
+        throw new Error("bad credentials");
+      }
+
+      return order;
+    },
+    getOrdersByStatus: async (_, { status }, ctx) => {
+      const orders = await Order.find({ salesPerson: ctx.user.id, status });
+      return orders;
+    },
+    getTopClients: async () => {
+      const clients = await Order.aggregate([
+        { $match: { status: "COMPLETED" } },
+        {
+          $group: {
+            _id: "$client",
+            total: { $sum: "$total" },
+          },
+        },
+        {
+          $lookup: {
+            from: "clients",
+            localField: "_id",
+            foreignField: "_id",
+            as: "client",
+          },
+        },
+        {
+          $limit: 10,
+        },
+        {
+          $sort: {
+            total: -1,
+          },
+        },
+      ]);
+      return clients;
+    },
+    getTopSalesPerson: async () => {
+      const salesPersons = await Order.aggregate([
+        { $match: { status: "COMPLETED" } },
+        {
+          $group: {
+            _id: "$salesPerson",
+            total: { $sum: "$total" },
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "_id",
+            foreignField: "_id",
+            as: "salesPerson",
+          },
+        },
+        {
+          $limit: 3,
+        },
+        {
+          $sort: {
+            total: -1,
+          },
+        },
+      ]);
+
+      return salesPersons;
+    },
+    searchProductByName: async (_, { txt }) => {
+      const products = await Product.find({ $text: { $search: txt } }).limit(
+        10
+      );
+      return products;
     },
   },
   Mutation: {
@@ -187,6 +284,97 @@ const resolvers = {
 
       await Client.findByIdAndDelete({ _id: id });
       return "Client Deleted";
+    },
+
+    newOrder: async (_, { input }, ctx) => {
+      const { client } = input;
+      //verify client
+      let clientExists = await Client.findById(client);
+
+      if (!clientExists) throw new Error("Product not found");
+      //verify sales
+
+      if (clientExists.seller.toString() !== ctx.user.id) {
+        throw new Error("bad credentials");
+      }
+
+      //verify stock
+
+      for await (const good of input.order) {
+        const { id } = good;
+
+        const product = await Product.findById(id);
+
+        if (good.quantity > product.stock) {
+          throw new Error(`${product.name} exceed the available quantity`);
+        } else {
+          //update stock
+          product.stock = product.stock - good.quantity;
+          await product.save();
+        }
+      }
+
+      //create new order
+      const newOrder = new Order(input);
+
+      //assign sales person
+      newOrder.salesPerson = ctx.user.id;
+
+      //save
+      const result = await newOrder.save();
+      return result;
+    },
+
+    updateOrder: async (_, { id, input }, ctx) => {
+      const { client } = input;
+
+      const orderExists = await Order.findById(id);
+      if (!orderExists) {
+        throw new Error("Product not found");
+      }
+
+      const clientExists = await Client.findById(client);
+      if (!clientExists) {
+        throw new Error("client not found");
+      }
+
+      if (clientExists.seller.toString() !== ctx.user.id) {
+        throw new Error("bad credentials");
+      }
+
+      if (input.order) {
+        for await (const good of input.order) {
+          const { id } = good;
+
+          const product = await Product.findById(id);
+
+          if (good.quantity > product.stock) {
+            throw new Error(`${product.name} exceed the available quantity`);
+          } else {
+            //update stock
+            product.stock = product.stock - good.quantity;
+            await product.save();
+          }
+        }
+      }
+      const result = await Order.findByIdAndUpdate({ _id: id }, input, {
+        new: true,
+      });
+      return result;
+    },
+
+    deleteOrder: async (_, { id }, ctx) => {
+      let order = Order.findById(id);
+
+      if (!order) throw new Error("Order not found");
+
+      // check if the user exists
+      if (order.salesPerson.toString() !== ctx.user.id) {
+        throw new Error("need credentials for this action");
+      }
+
+      await Order.findByIdAndDelete({ _id: id });
+      return "Order Deleted";
     },
   },
 };
