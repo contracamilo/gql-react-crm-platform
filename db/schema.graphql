@@ -41,13 +41,15 @@ const typeDefs = gql`
   type OrderGroup {
      id: ID
      quantity: Int
+     name: String
+     price: Float
   }
 
   type Order {
     id: ID
     order: [OrderGroup]
     total: Float
-    client: ID
+    client: Client
     salesPerson: ID
     status: OrderStatus
     createdAt: String
@@ -83,6 +85,8 @@ const typeDefs = gql`
   input ProductOrderInput {
     id: ID
     quantity: Int
+    name: String
+    price: Float
   }
 
   input OrderInput {
@@ -105,7 +109,9 @@ const typeDefs = gql`
   type Query {
     # Users
 
-    getAuthUser(token: String!): User
+    getAuthUser: User
+    # get user by id
+    getUserByID(id: ID!): User
 
     # Products
 

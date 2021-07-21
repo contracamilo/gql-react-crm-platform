@@ -13,10 +13,18 @@ const createToken = (user, secret, expiresIn) => {
 
 const resolvers = {
   Query: {
-    getAuthUser: async (_, { token }, ctx, info) => {
-      const userId = await jwt.verify(token, process.env.SECRET);
+    getAuthUser: async (_, {}, ctx) => {
+      console.log(ctx.user);
+      return ctx.user;
+    },
+    getUserByID: async (_, { id }) => {
+      const user = await User.findById(id);
 
-      return userId;
+      if (!user) {
+        throw new Error("Product doesn't exist");
+      }
+
+      return user;
     },
     getProducts: async () => {
       try {
@@ -73,7 +81,10 @@ const resolvers = {
     },
     getOrdersBySalesPerson: async (_, {}, ctx) => {
       try {
-        const orders = await Order.find({ salesPerson: ctx.user.id });
+        const orders = await Order.find({ salesPerson: ctx.user.id }).populate(
+          "client"
+        );
+
         return orders;
       } catch (error) {
         console.error(error);
@@ -174,7 +185,6 @@ const resolvers = {
       input.password = await bcryptjs.hash(password, salt);
 
       try {
-        console.log(input);
         const user = new User(input);
         user.save();
         return user;
@@ -207,7 +217,6 @@ const resolvers = {
     },
 
     addNewProduct: async (_, { input }, ctx, info) => {
-      console.log(input);
       try {
         const product = new Product(input);
         const result = await product.save();
@@ -220,17 +229,17 @@ const resolvers = {
     updateProduct: async (_, { id, input }) => {
       let product = Product.findById(id);
 
-      console.log(product);
-
       if (!product) throw new Error("Product not found");
 
-      product = await Product.findOne({ _id: id }, input, { new: true });
+      product = await Product.findOneAndUpdate({ _id: id }, input, {
+        new: true,
+      });
 
       return product;
     },
 
     deleteProduct: async (_, { id }) => {
-      let product = await Product.findById(id);
+      const product = await Product.findByIdAndDelete(id);
 
       if (!product) {
         throw new Error("Product not found");
@@ -369,8 +378,8 @@ const resolvers = {
       if (!order) throw new Error("Order not found");
 
       // check if the user exists
-      if (order.salesPerson.toString() !== ctx.user.id) {
-        throw new Error("need credentials for this action");
+      if (ctx.user.id) {
+        if (!order) throw new Error("need credentials for this action");
       }
 
       await Order.findByIdAndDelete({ _id: id });

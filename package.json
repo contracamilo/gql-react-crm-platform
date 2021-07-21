@@ -11,6 +11,7 @@
   "author": "Camilo Rivera",
   "license": "ISC",
   "dependencies": {
+    "apollo-link-context": "^1.0.20",
     "apollo-server": "^2.21.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^8.2.0",
